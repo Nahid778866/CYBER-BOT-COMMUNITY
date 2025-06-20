@@ -1,14 +1,52 @@
-module.exports.config = {
-	name: "offbot",
-	version: "1.0.0",
-	hasPermssion: 2,
-	credits: "𝐂𝐘𝐁𝐄𝐑 ☢️_𖣘 -𝐁𝐎𝐓 ⚠️ 𝑻𝑬𝑨𝑴_ ☢️",
-	description: "turn the bot off",
-	commandCategory: "system",
-	cooldowns: 0
-        };
-module.exports.run = ({event, api}) =>{
-    const permission = ["61559738823852", "100065428878663"];
-  	if (!permission.includes(event.senderID)) return api.sendMessage("[ ERR ] You don't have permission to use this command, This Command Only For ULLASH", event.threadID, event.messageID);
-  api.sendMessage(`[ OK ] ${global.config.BOTNAME} Bot are now turned off.`,event.threadID, () =>process.exit(0))
+// ইউজারের বট চালু/বন্ধ স্ট্যাটাস সংরক্ষণের জন্য
+const userStatus = {};  // userId অনুযায়ী: { "123456": "off" }
+
+function sendMessage(senderId, text) {
+  const request = require('request');
+  request({
+    url: 'https://graph.facebook.com/v17.0/me/messages',
+    qs: { access_token: PAGE_ACCESS_TOKEN },
+    method: 'POST',
+    json: {
+      recipient: { id: senderId },
+      message: { text }
+    }
+  });
 }
+
+app.post('/webhook', (req, res) => {
+  let body = req.body;
+
+  if (body.object === 'page') {
+    body.entry.forEach(entry => {
+      let event = entry.messaging[0];
+      let senderId = event.sender.id;
+      let msg = event.message?.text?.toLowerCase();
+
+      if (!msg) return;
+
+      if (msg === "off") {
+        userStatus[senderId] = "off";
+        sendMessage(senderId, "✅ Bot বন্ধ করা হয়েছে। আপনি 'on' লিখলে আবার চালু হবে।");
+      } 
+      else if (msg === "on") {
+        userStatus[senderId] = "on";
+        sendMessage(senderId, "🔛 Bot আবার চালু হয়েছে! কিছু জিজ্ঞাসা করুন।");
+      } 
+      else {
+        if (userStatus[senderId] === "off") {
+          // যদি off থাকে, কিছু না করে return
+          return;
+        }
+
+        // Bot Active → উত্তর দেওয়া শুরু
+        sendMessage(senderId, `আপনি বললেন: "${msg}"`);
+        // চাইলে এখানে GPT response দিতে পারেন
+      }
+    });
+
+    res.sendStatus(200);
+  } else {
+    res.sendStatus(404);
+  }
+});
